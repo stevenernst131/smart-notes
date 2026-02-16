@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Smart Notes</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<style>
+:root {
+  --bg: #0f1117; --surface: #1a1d27; --surface-hover: #222632;
+  --border: #2a2e3b; --text: #e4e6eb; --text-secondary: #8b8fa3;
+  --accent: #6c63ff; --accent-hover: #5a52e0;
+  --danger: #e5484d; --success: #30a46c;
+  --radius: 12px; --radius-sm: 8px;
+  --shadow: 0 2px 8px rgba(0,0,0,.3);
+  --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--font); background: var(--bg); color: var(--text); line-height: 1.6; min-height: 100vh; }
+
+.app { max-width: 900px; margin: 0 auto; padding: 32px 20px; }
+header { text-align: center; margin-bottom: 36px; }
+header h1 { font-size: 2rem; font-weight: 700; background: linear-gradient(135deg, var(--accent), #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+header p { color: var(--text-secondary); font-size: .95rem; margin-top: 4px; }
+.ai-badge { display: inline-block; font-size: .75rem; padding: 2px 10px; border-radius: 999px; margin-left: 8px; vertical-align: middle; }
+.ai-badge.enabled { background: var(--success); color: #fff; }
+.ai-badge.disabled { background: var(--border); color: var(--text-secondary); }
+
+.note-form { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; margin-bottom: 32px; box-shadow: var(--shadow); }
+.note-form input, .note-form textarea {
+  width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  color: var(--text); font-family: var(--font); font-size: .95rem; padding: 12px 14px; outline: none; transition: border-color .2s;
+}
+.note-form input:focus, .note-form textarea:focus { border-color: var(--accent); }
+.note-form input { margin-bottom: 12px; }
+.note-form textarea { min-height: 120px; resize: vertical; margin-bottom: 16px; }
+.form-actions { display: flex; gap: 10px; }
+
+.btn {
+  display: inline-flex; align-items: center; gap: 6px; padding: 10px 18px; border: none;
+  border-radius: var(--radius-sm); font-family: var(--font); font-size: .875rem; font-weight: 600;
+  cursor: pointer; transition: background .2s, transform .1s;
+}
+.btn:active { transform: scale(.97); }
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { background: var(--accent-hover); }
+.btn-secondary { background: transparent; color: var(--text-secondary); border: 1px solid var(--border); }
+.btn-secondary:hover { background: var(--surface-hover); color: var(--text); }
+.btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
+.btn-danger:hover { background: var(--danger); color: #fff; }
+.btn-sm { padding: 6px 12px; font-size: .8rem; }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+
+.note-list { display: flex; flex-direction: column; gap: 16px; }
+.empty-state { text-align: center; padding: 60px 20px; color: var(--text-secondary); }
+.empty-state .icon { font-size: 3rem; margin-bottom: 12px; }
+
+.note-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 20px 24px; box-shadow: var(--shadow); transition: border-color .2s;
+}
+.note-card:hover { border-color: var(--accent); }
+.note-card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.note-card-header h3 { font-size: 1.1rem; }
+.note-card-header .header-btns { display: flex; gap: 6px; }
+.note-card .meta { font-size: .78rem; color: var(--text-secondary); margin-bottom: 10px; }
+.note-card .content { white-space: pre-wrap; font-size: .92rem; margin-bottom: 16px; line-height: 1.7; }
+.note-card .actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.ai-result { margin-top: 14px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px 16px; }
+.ai-result h4 { font-size: .82rem; color: var(--accent); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 8px; }
+.ai-result pre { white-space: pre-wrap; font-size: .88rem; color: var(--text); font-family: var(--font); }
+
+.edit-form input, .edit-form textarea {
+  width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  color: var(--text); font-family: var(--font); font-size: .92rem; padding: 10px 12px; outline: none; margin-bottom: 10px;
+}
+.edit-form input:focus, .edit-form textarea:focus { border-color: var(--accent); }
+.edit-form textarea { min-height: 90px; resize: vertical; }
+.edit-actions { display: flex; gap: 8px; margin-bottom: 12px; }
+
+.spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin .6s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>✨ Smart Notes <span id="ai-badge" class="ai-badge disabled">AI Mock</span></h1>
+    <p>Create notes and use AI to summarize, extract tasks, or analyze sentiment</p>
+  </header>
+
+  <form class="note-form" id="note-form">
+    <input id="note-title" placeholder="Note title…" />
+    <textarea id="note-content" placeholder="Write your note here…"></textarea>
+    <div class="form-actions">
+      <button class="btn btn-primary" type="submit">➕ Add Note</button>
+    </div>
+  </form>
+
+  <div id="note-list" class="note-list"></div>
+</div>
+
+<script>
+const API = '/api';
+const noteList = document.getElementById('note-list');
+const form = document.getElementById('note-form');
+const titleInput = document.getElementById('note-title');
+const contentInput = document.getElementById('note-content');
+const aiBadge = document.getElementById('ai-badge');
+
+// Check AI status
+fetch(`${API}/health`).then(r => r.json()).then(d => {
+  if (d.ai_enabled) { aiBadge.className = 'ai-badge enabled'; aiBadge.textContent = 'AI ON'; }
+}).catch(() => {});
+
+// Load notes
+async function loadNotes() {
+  try {
+    const res = await fetch(`${API}/notes`);
+    const notes = await res.json();
+    if (notes.length === 0) {
+      noteList.innerHTML = '<div class="empty-state"><div class="icon">📝</div><p>No notes yet. Create one above!</p></div>';
+      return;
+    }
+    noteList.innerHTML = notes.map(n => noteCard(n)).join('');
+  } catch (e) {
+    noteList.innerHTML = '<div class="empty-state"><p>Failed to load notes.</p></div>';
+  }
+}
+
+function noteCard(n) {
+  const date = new Date(n.created_at).toLocaleString();
+  return `<div class="note-card" id="note-${n.id}">
+    <div class="note-card-header">
+      <h3>${esc(n.title)}</h3>
+      <div class="header-btns">
+        <button class="btn btn-secondary btn-sm" onclick="startEdit('${n.id}')">✏️</button>
+        <button class="btn btn-danger btn-sm" onclick="delNote('${n.id}')">🗑️</button>
+      </div>
+    </div>
+    <div class="meta">${date}</div>
+    <div class="content">${esc(n.content)}</div>
+    <div class="actions">
+      <button class="btn btn-secondary btn-sm" onclick="aiAction('${n.id}','summarize',this)">📝 Summarize</button>
+      <button class="btn btn-secondary btn-sm" onclick="aiAction('${n.id}','action_items',this)">✅ Action Items</button>
+      <button class="btn btn-secondary btn-sm" onclick="aiAction('${n.id}','sentiment',this)">💭 Sentiment</button>
+    </div>
+    <div id="ai-${n.id}"></div>
+  </div>`;
+}
+
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+// Create note
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const title = titleInput.value.trim();
+  const content = contentInput.value.trim();
+  if (!title || !content) return;
+  await fetch(`${API}/notes`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title, content })
+  });
+  titleInput.value = ''; contentInput.value = '';
+  loadNotes();
+});
+
+// Delete note
+async function delNote(id) {
+  await fetch(`${API}/notes/${id}`, { method: 'DELETE' });
+  loadNotes();
+}
+
+// Edit note
+async function startEdit(id) {
+  const res = await fetch(`${API}/notes/${id}`);
+  const n = await res.json();
+  const card = document.getElementById(`note-${id}`);
+  card.innerHTML = `<div class="edit-form">
+    <input id="edit-title-${id}" value="${esc(n.title)}" />
+    <textarea id="edit-content-${id}">${esc(n.content)}</textarea>
+    <div class="edit-actions">
+      <button class="btn btn-primary btn-sm" onclick="saveEdit('${id}')">Save</button>
+      <button class="btn btn-secondary btn-sm" onclick="loadNotes()">Cancel</button>
+    </div>
+  </div>`;
+}
+
+async function saveEdit(id) {
+  const title = document.getElementById(`edit-title-${id}`).value.trim();
+  const content = document.getElementById(`edit-content-${id}`).value.trim();
+  if (!title || !content) return;
+  await fetch(`${API}/notes/${id}`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title, content })
+  });
+  loadNotes();
+}
+
+// AI action
+async function aiAction(id, action, btn) {
+  const container = document.getElementById(`ai-${id}`);
+  container.innerHTML = '<span class="spinner"></span>';
+  const btns = btn.parentElement.querySelectorAll('button');
+  btns.forEach(b => b.disabled = true);
+  try {
+    const res = await fetch(`${API}/notes/${id}/ai/${action}`, { method: 'POST' });
+    const data = await res.json();
+    container.innerHTML = `<div class="ai-result"><h4>${data.action.replace('_', ' ')}</h4><pre>${esc(data.result)}</pre></div>`;
+  } catch (e) {
+    container.innerHTML = `<div class="ai-result"><h4>Error</h4><pre>${e.message}</pre></div>`;
+  }
+  btns.forEach(b => b.disabled = false);
+}
+
+loadNotes();
+</script>
+</body>
+</html>
