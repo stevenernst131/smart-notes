@@ -20,7 +20,7 @@ Connect this repo in the [Embr Portal](https://portal.embrdev.io), and Embr will
 
 ```bash
 pip install -r requirements.txt
-uvicorn backend.app:app --reload --port 8008
+PORT=8008 uvicorn backend.app:app --reload --port ${PORT}
 ```
 
 Open http://localhost:8008
