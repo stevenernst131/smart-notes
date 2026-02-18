@@ -3,3 +3,4 @@ platform: python
 platformVersion: "3.14"
 run:
   port: 8080
+  startCommand: gunicorn -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:${PORT:-8080} application:app
